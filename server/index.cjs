@@ -9,7 +9,7 @@ const ffmpegPath = require("ffmpeg-static");
 dotenv.config();
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
@@ -32,14 +32,15 @@ function convertToWav(inputBuffer) {
     const output = [];
     let errorOutput = "";
 
-    ffmpeg.stdout.on("data", chunk => output.push(chunk));
-    ffmpeg.stderr.on("data", chunk => {
+    ffmpeg.stdout.on("data", (chunk) => output.push(chunk));
+
+    ffmpeg.stderr.on("data", (chunk) => {
       errorOutput += chunk.toString();
     });
 
     ffmpeg.on("error", reject);
 
-    ffmpeg.on("close", code => {
+    ffmpeg.on("close", (code) => {
       if (code === 0) {
         resolve(Buffer.concat(output));
       } else {
@@ -47,7 +48,10 @@ function convertToWav(inputBuffer) {
       }
     });
 
-    ffmpeg.stdin.on("error", reject);
+    ffmpeg.stdin.on("error", (error) => {
+      if (error.code !== "EPIPE") reject(error);
+    });
+
     ffmpeg.stdin.end(inputBuffer);
   });
 }
@@ -64,7 +68,7 @@ app.post(
       console.log("Voice request received");
 
       if (!process.env.GNANI_API_KEY) {
-        throw new Error("GNANI_API_KEY missing from .env");
+        throw new Error("GNANI_API_KEY is missing");
       }
 
       if (!req.file) {
@@ -108,7 +112,6 @@ app.post(
       const responseText = await response.text();
 
       console.log("Gnani HTTP status:", response.status);
-      console.log("Gnani raw response:", responseText);
 
       let result;
 
@@ -119,6 +122,8 @@ app.post(
       }
 
       if (!response.ok) {
+        console.error("Gnani API error:", responseText);
+
         return res.status(response.status).json({
           error:
             result?.detail?.message ||
@@ -147,6 +152,6 @@ app.post(
   }
 );
 
-app.listen(PORT, () => {
-  console.log(`Voice server running at http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Voice server running on port ${PORT}`);
 });
