@@ -154,7 +154,7 @@ export default function VoiceAssistant({
       const formData = new FormData();
       formData.append("audio", blob, "voice-command.webm");
 
-      const response = await fetch("http://localhost:5000/api/voice-command", {
+      const response = await fetch("https://subway-runner-voice-server.onrender.com/api/voice-command", {
         method: "POST",
         body: formData,
       });
